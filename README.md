@@ -1,9 +1,10 @@
-## HOW TO USE
+## xtznftswap Tezos Contracts
 
-The front end needs to always batch together two transactions.
+The contracts and unit tests for the core xtznftswap contract written in python/SmartPy.
 
 ### Proposing
 
+The front end needs to always batch together two+ transactions.
 Adds the proposal to the storage. Tezos tokens will be held custodialy until `accept_trade` or `cancel_trade` is called.
 
 ```
@@ -23,6 +24,7 @@ xtznftswapContract.methods.propose_trade(...)
 
 ### Accepting
 
+The front end needs to always batch together two+ transactions.
 Causes FA2 tokens and tezos to swap parties according to the proposal.
 
 ```
@@ -40,6 +42,7 @@ xtznftswapContract.methods.accept_trade()
 
 ### Cancellation
 
+The front end needs to always batch together two+ transactions.
 Invalidates the trade proposal forever. Returns all tezos held custodially.
 
 ```
