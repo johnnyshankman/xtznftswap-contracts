@@ -1,6 +1,6 @@
 # xtznftswap Tezos Contracts
 
-The contracts and unit tests for the core xtznftswap contract written in python/SmartPy.
+This repo uses SmartPy CLI to compile and unit test the core xtznftswap contract used by xtznftswap.xyz
 
 ## Tests
 
