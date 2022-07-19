@@ -1,10 +1,13 @@
-## xtznftswap Tezos Contracts
+# xtznftswap Tezos Contracts
 
 The contracts and unit tests for the core xtznftswap contract written in python/SmartPy.
 
-### Proposing
+## How To
 
 The front end needs to always batch together two+ transactions.
+
+### Proposing
+
 Adds the proposal to the storage. Tezos tokens will be held custodialy until `accept_trade` or `cancel_trade` is called.
 
 ```
@@ -24,7 +27,6 @@ xtznftswapContract.methods.propose_trade(...)
 
 ### Accepting
 
-The front end needs to always batch together two+ transactions.
 Causes FA2 tokens and tezos to swap parties according to the proposal.
 
 ```
@@ -42,7 +44,6 @@ xtznftswapContract.methods.accept_trade()
 
 ### Cancellation
 
-The front end needs to always batch together two+ transactions.
 Invalidates the trade proposal forever. Returns all tezos held custodially.
 
 ```
@@ -65,21 +66,21 @@ Operators for an FA2 compliant token are *not* reset upon transfer.
 This has fallout. If someone were to transfer/sell their token away, then buy it back, any operators they previously had set would come back to life. It's what I call the Orderbook Enigma because in the orderbook context, this means any valid trades you proposed are now active again unless manually cancelled.
 
 
-## REFERENCE
+## References
 
-Random FA2 Testnet Contracts:
+### Random FA2 Testnet Contracts:
 * https://better-call.dev/ithacanet/KT1LofkgTJTpXvjscjgsZmPUSxP2iUimni8m/operations
 * https://better-call.dev/jakartanet/KT1HT4ju6pYDsKVZc9zHSvS5DDkqSyLncTWe/interact/update_operators
 
-In case you need some metadata to test with:
+### In case you need some metadata to test with:
 * https://better-call.dev/mainnet/big_map/23516/keys
 
-SmartPy Reference IDE and Documentation:
+### SmartPy Reference IDE and Documentation:
 * https://smartpy.io/ide
 * https://smartpy.io/docs/
 
-Inspiration:
+###Inspiration:
 * https://github.com/jagracar/tezos-smart-contracts/blob/main/python/contracts/fa2Contract.py
 
-Faucet tutorial to get xtz on any test chain using CLI:
+### Faucet tutorial to get xtz on any test chain using CLI:
 * https://coinsbench.com/tezos-faucet-how-to-get-free-tezos-for-hangzhou-test-blockchain-36fd188515b7
