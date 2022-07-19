@@ -2,7 +2,15 @@
 
 The contracts and unit tests for the core xtznftswap contract written in python/SmartPy.
 
-## How To
+## Tests
+
+To run tests be sure to have [SmartPy CLI](https://smartpy.io/docs/cli/) installed globally on your machine. After that you can use npm to run the tests with `npm run test`. Output for each test can be be found in `compile/` after running.
+
+## Compilation
+
+To run tests be sure to have [SmartPy CLI](https://smartpy.io/docs/cli/) installed globally on your machine. After that you can use npm to compile down the main contract using `npm run compile`. Output can be be found in `compile/` after running.
+
+## How To Use Contract
 
 The front end needs to always batch together two+ transactions.
 
