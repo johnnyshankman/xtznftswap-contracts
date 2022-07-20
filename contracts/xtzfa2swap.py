@@ -8,14 +8,16 @@ class XTZFA2Swap(sp.Contract):
     """
 
     TOKEN_TYPE = sp.TRecord(
-        # The FA2 token contract address
+        # The FA2 token's contract address
         fa2=sp.TAddress,
-        # The FA2 token id
+        # The FA2 token's id
         id=sp.TNat,
         # The quantity of that token to trade
-        amount=sp.TNat
+        amount=sp.TNat,
+        # Where to pay the 5% artist royalty
+        royalty_addresses=sp.TList(sp.TAddress),
     ).layout(
-      ("fa2", ("id", "amount")
+      ("fa2", ("id", ("amount", "royalty_addresses"))
     ))
 
     TRADE_PROPOSAL_TYPE = sp.TRecord(
@@ -124,16 +126,24 @@ class XTZFA2Swap(sp.Contract):
         sp.verify(trade_proposal.proposer != trade_proposal.acceptor,
                   message="The users involved in the trade need to be different")
 
+        # Check there is an FA2 token on each side of the trade
         sp.verify(sp.len(trade_proposal.tokens1) > 0, message="At least one FA2 token needs to be traded by proposer")
         sp.verify(sp.len(trade_proposal.tokens2) > 0, message="At least one FA2 token needs to be traded by acceptor")
 
-        # Loop over the first user token list
+        # Check that the tezos passed in to tx is the same as in the proposal
+        sp.if trade_proposal.mutez_amount1 != sp.mutez(0):
+            # Check that the sent tez sent to the contract coincides with
+            # what was specified in the trade proposal
+            sp.verify(sp.amount == trade_proposal.mutez_amount1,
+                        message="The sent tez amount does not coincide trade proposal amount with 5% royalties")
+
+        # Non-custodially ensure they own every token in the proposal
         sp.for token in trade_proposal.tokens1:
-            # Check that they own all editions by sending to contract and back.
-            # This is intentionally a no-op. This is intentionally two txs.
-            # Why? Some contracts disallow self sending and get_balance is not
-            # an option as it is async. off-chain checking of balance is also not
-            # an option bc it is not guaranteed.
+            # Checks they own all editions by sending them to the contract and back.
+            # This is intentionally a no-op and two separate txs. Why? Some FA2 contracts dont
+            # allow self sending, we cant use get_balance since it will not return the value
+            # in the same entrypoint call, and balance_of is not guaranteed to be implemented.
+            # This is our best option.
             self.fa2_transfer(
                 fa2=token.fa2,
                 from_=sp.sender,
@@ -147,43 +157,17 @@ class XTZFA2Swap(sp.Contract):
                 token_id=token.id,
                 token_amount=token.amount)
 
-        # Update the trades bigmap with the new trade information
+        # Update the trades order book bigmap with the new trade information
+        # NOTE: By default, you're considered to have accepted your own trade
         self.data.trades[self.data.counter] = sp.record(
-            proposer_accepted=False,
+            proposer_accepted=True,
             acceptor_accepted=False,
             executed=False,
             proposal=trade_proposal)
 
-        # Instantly accept the trade on your end, trade_id is current counter value
-        self.accept_my_trade(self.data.counter)
-
-        # Increase the trades counter so another can be proposed
+        # Increase the trade id counter for next proposal
         self.data.counter += 1
 
-    def accept_my_trade(self, trade_id):
-        """Accepts your own trade.
-        """
-        # Define the input parameter data type
-        sp.set_type(trade_id, sp.TNat)
-
-        # Check that the trade was not executed before
-        self.check_trade_not_executed(trade_id)
-
-        # Check that the sender is the proposer
-        trade = self.data.trades[trade_id]
-        self.check_is_proposer(trade.proposal)
-
-        # Check that the user didn't accept the trade before
-        sp.verify(~trade.proposer_accepted,
-                    message="The trade is already accepted")
-
-        # Accept the trade
-        trade.proposer_accepted = True
-
-        # Check that the sent tez sent to the contract coincides with
-        # what was specified in the trade proposal
-        sp.verify(sp.amount == trade.proposal.mutez_amount1,
-                    message="The sent tez amount does not coincide trade proposal amount")
 
     @sp.entry_point
     def accept_trade(self, trade_id):
@@ -206,9 +190,10 @@ class XTZFA2Swap(sp.Contract):
         # Accept the trade
         trade.acceptor_accepted = True
 
-        # Check that the sent tez coincides with what was specified in the trade proposal
-        sp.verify(sp.amount == trade.proposal.mutez_amount2,
-                    message="The sent tez amount does not coincide trade proposal amount")
+        sp.if trade.proposal.mutez_amount2 != sp.mutez(0):
+            # Check that the sent tez coincides with what was specified in the trade proposal
+            sp.verify(sp.amount == trade.proposal.mutez_amount2,
+                        message="The sent tez amount does not coincide trade proposal amount with 5% royalties")
 
         # Triple check the trade is accepted on both sides
         self.check_trade_completely_accepted(trade)
@@ -218,7 +203,8 @@ class XTZFA2Swap(sp.Contract):
 
     @sp.entry_point
     def cancel_trade_proposal(self, trade_id):
-        """Cancels a proposed trade from proposer by giving back tez and not accepting the trade
+        """Cancels a proposed trade from proposer by giving back tez and
+           not accepting the trade. Ensures the trade is valid first.
         """
         # Define the input parameter data type
         sp.set_type(trade_id, sp.TNat)
@@ -229,7 +215,7 @@ class XTZFA2Swap(sp.Contract):
         # Check that the trade was not executed before
         self.check_trade_not_executed(trade_id)
 
-        # Check that the sender is the proposer, only proposers can cancel a trade
+        # Check that the sender is the proposer
         trade = self.data.trades[trade_id]
         self.check_is_proposer(trade.proposal)
 
@@ -240,12 +226,12 @@ class XTZFA2Swap(sp.Contract):
         # Change the status to not accepted
         trade.proposer_accepted = False
 
-        # Transfer the locked tez back to the proposer who proposed the trade
+        # Transfer the locked tez back to the proposer
         sp.if trade.proposal.mutez_amount1 != sp.mutez(0):
             sp.send(sp.sender, trade.proposal.mutez_amount1)
 
     def execute_trade(self, trade_id):
-        """Executes a trade.
+        """Executes a trade by swapping the tezos and FA2 tokens.
         """
         # Define the input parameter data type
         sp.set_type(trade_id, sp.TNat)
@@ -264,31 +250,65 @@ class XTZFA2Swap(sp.Contract):
         # Set the trade as executed
         trade.executed = True
 
-        # Transfer the tez from this submitted tx from acceptor to proposer
-        sp.if trade.proposal.mutez_amount2 != sp.mutez(0):
-            sp.send(trade.proposal.proposer, trade.proposal.mutez_amount2)
+        # Used to calculate royalty amounts and how many accounts to split them between
+        royalties1 = sp.mutez(0)
+        royaltyDenom1 = 0
+        royaltyDenom1 = sp.local('royaltyDenom1', royaltyDenom1)
+        royalties2 = sp.mutez(0)
+        royaltyDenom2 = 0
+        royaltyDenom2 = sp.local('royaltyDenom2', royaltyDenom2)
 
-        # Transfer the locked tez from the proposer to the acceptor
-        sp.if trade.proposal.mutez_amount1 != sp.mutez(0):
+        # Find sum of all royalty addresses to use as denominator later for splits
+        sp.for token in trade.proposal.tokens1:
+            royaltyDenom1.value = royaltyDenom1.value + sp.len(token.royalty_addresses)
+        # Transfer the locked tez from ESCROW/proposer to acceptor
+        sp.if ((royaltyDenom1.value > 0) & (trade.proposal.mutez_amount1 != sp.mutez(0))):
+            # Calculate 5% royalties for acceptor side
+            royalties1 = sp.split_tokens(trade.proposal.mutez_amount1, 1, 20)
+            # Send proposed trade amount to user minus the 5% royalty fee
+            sp.send(sp.sender, (trade.proposal.mutez_amount1 - royalties1))
+        sp.else:
             sp.send(sp.sender, trade.proposal.mutez_amount1)
 
-        # Transfer acceptor's tokens to proposer
+        # Find sum of all royalty addresses to use as denominator later for splits
         sp.for token in trade.proposal.tokens2:
-            self.fa2_transfer(
-                fa2=token.fa2,
-                from_=sp.sender,
-                to_=trade.proposal.proposer,
-                token_id=token.id,
-                token_amount=token.amount)
+            royaltyDenom2.value = royaltyDenom2.value + sp.len(token.royalty_addresses)
+        # Transfer this tx's tez from acceptor to proposer
+        sp.if ((royaltyDenom2.value > 0) & (trade.proposal.mutez_amount2 != sp.mutez(0))):
+            # Calculate 5% royalties for acceptor side
+            royalties2 = sp.split_tokens(trade.proposal.mutez_amount2, 1, 20)
+            # Send proposed trade amount to user minus the 5% royalty fee
+            sp.send(trade.proposal.proposer, (trade.proposal.mutez_amount2 - royalties2))
+        sp.else:
+            sp.send(trade.proposal.proposer, (trade.proposal.mutez_amount2))
 
         # Transfer proposer's tokens to acceptor
         sp.for token in trade.proposal.tokens1:
+            # transfer FA2
             self.fa2_transfer(
                 fa2=token.fa2,
                 from_=trade.proposal.proposer,
                 to_=sp.sender,
                 token_id=token.id,
                 token_amount=token.amount)
+            # Give every royalty address its cut of the 5% royalty
+            sp.for royalty_address in token.royalty_addresses:
+                royaltyCut = sp.split_tokens(royalties1, 1, royaltyDenom1.value)
+                sp.send(royalty_address, royaltyCut)
+
+        # Transfer acceptor's tokens to proposer
+        sp.for token in trade.proposal.tokens2:
+            # transfer FA2
+            self.fa2_transfer(
+                fa2=token.fa2,
+                from_=sp.sender,
+                to_=trade.proposal.proposer,
+                token_id=token.id,
+                token_amount=token.amount)
+            # Give every royalty address its cut of the 5% royalty
+            sp.for royalty_address in token.royalty_addresses:
+                royaltyCut = sp.split_tokens(royalties2, 1, royaltyDenom2.value)
+                sp.send(royalty_address, royaltyCut)
 
     def fa2_transfer(self, fa2, from_, to_, token_id, token_amount):
         """Transfers a number of editions of a FA2 token between two addresses.

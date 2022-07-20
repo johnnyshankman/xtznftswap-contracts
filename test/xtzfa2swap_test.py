@@ -72,6 +72,7 @@ def test_kyc_trade():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(0),
+                royalty_addresses= sp.list([]),
             )
         ]),
         tokens2 = sp.list([
@@ -79,6 +80,7 @@ def test_kyc_trade():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(1),
+                royalty_addresses= sp.list([]),
             )
         ]),
         proposer = sp.test_account("Administrator").address,
@@ -103,6 +105,10 @@ def test_kyc_trade():
 
     # propose a trade that requires the sender to send tezos
     # set acceptor to an address, signifying a KYC trade.
+    # set 2 royalty addresses for each token to test auto 5% royalty splits.
+    # NOTE: you must check log.html to validate the royalty fees transferred.
+    #       in this test 0.025 to each royalty account in first trade
+    #       in this test 0.050 to each royalty account in second trade
     swapC.propose_trade(sp.record(
         mutez_amount1 = sp.tez(1),
         mutez_amount2 = sp.tez(2),
@@ -111,6 +117,10 @@ def test_kyc_trade():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(0),
+                royalty_addresses= sp.list([
+                    sp.test_account("Johnny").address,
+                    sp.test_account("Jane").address
+                ]),
             )
         ]),
         tokens2 = sp.list([
@@ -118,6 +128,10 @@ def test_kyc_trade():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(1),
+                royalty_addresses= sp.list([
+                    sp.test_account("Bobby").address,
+                    sp.test_account("Johnny").address
+                ]),
             )
         ]),
         proposer = sp.test_account("Administrator").address,
@@ -127,18 +141,18 @@ def test_kyc_trade():
         amount = sp.tez(1),
     )
 
-    # verify the contract holds 1tez now in custody from proposer
+    # verify the contract holds 1tez + 5% in custody from proposer
     scenario.verify(swapC.balance == sp.tez(1))
 
-    # verify that alice still owns token 1 and admin still owns token 0
+    # verify that Alice still owns token 1 and Administrator still owns token 0
     scenario.verify(fa2_1.get_balance(sp.record(owner=sp.test_account("Administrator").address, token_id=0)) == 1)
     scenario.verify(fa2_1.get_balance(sp.record(owner=sp.test_account("Alice").address, token_id=1)) == 1)
 
-    # FAIL: can't accept the trade because this contract doesnt have operator rights for the tokens
+    # FAIL: can't accept the trade because contract doesnt have operator rights for the tokens
     swapC.accept_trade(0).run(
       valid=False,
       sender=sp.test_account("Alice").address,
-      amount=sp.tez(0)
+      amount=sp.tez(2),
     )
 
     # now allow the swap contract to operate on Alice's token
@@ -160,13 +174,13 @@ def test_kyc_trade():
       valid=False,
       exception='This can only be executed by the trade acceptor',
       sender=sp.test_account("Robert").address,
-      amount=sp.tez(2)
+      amount=sp.tez(2),
     )
 
     # FAIL: you cant send wrong tez amount
     swapC.accept_trade(0).run(
       valid=False,
-      exception = "The sent tez amount does not coincide trade proposal amount",
+      exception = "The sent tez amount does not coincide trade proposal amount with 5% royalties",
       sender=sp.test_account("Alice").address,
       amount=sp.tez(1)
     )
@@ -190,7 +204,7 @@ def test_kyc_trade():
       valid=False,
       exception = "This can only be executed by the trade acceptor",
       sender=sp.test_account("Rober").address,
-      amount=sp.tez(1)
+      amount=sp.tez(2),
     )
 
     # transfer the token back to Alice so she can accept the proposed trade
@@ -208,10 +222,11 @@ def test_kyc_trade():
 
     # accept the trade
     # WARN: operators doesnt reset? that's crazy.
-    # use the log.html file to ensure tezos was properly distributed to each account
+    # DEV: You must use the log.html file to ensure tezos was properly distributed to each account
+    #      there is no way to check tezos balances of test accounts
     swapC.accept_trade(0).run(
       sender=sp.test_account("Alice").address,
-      amount=sp.tez(2)
+      amount=sp.tez(2),
     )
 
     # verify that now Alice has token 0 and Admin has token 1, they've swapped
@@ -226,7 +241,7 @@ def test_kyc_trade():
     swapC.accept_trade(0).run(
       valid=False,
       sender=sp.test_account("Alice").address,
-      amount=sp.tez(2)
+      amount=sp.tez(2),
     )
 
     # FAIL: new owner needs to update operators before proposing will work again
@@ -238,6 +253,7 @@ def test_kyc_trade():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(0),
+                royalty_addresses= sp.list([])
             )
         ]),
         tokens2 = sp.list([
@@ -245,6 +261,7 @@ def test_kyc_trade():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(1),
+                royalty_addresses= sp.list([])
             )
         ]),
         proposer = sp.test_account("Alice").address,
@@ -313,6 +330,7 @@ def test_anon_trade():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(0),
+                royalty_addresses= sp.list([]),
             )
         ]),
         tokens2 = sp.list([
@@ -320,6 +338,7 @@ def test_anon_trade():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(1),
+                royalty_addresses= sp.list([]),
             )
         ]),
         proposer = sp.test_account("Administrator").address,
@@ -344,6 +363,8 @@ def test_anon_trade():
 
     # propose a trade that requires the sender to send tezos
     # set acceptor to the contract itself, signifying an anon trade.
+    # set no royalty addresses, which should trigger no 5% royalty fees.
+    # NOTE: you must check log.html to validate the royalty fee wasnt triggered.
     swapC.propose_trade(sp.record(
         mutez_amount1 = sp.tez(1),
         mutez_amount2 = sp.tez(2),
@@ -352,6 +373,7 @@ def test_anon_trade():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(0),
+                royalty_addresses= sp.list([]),
             )
         ]),
         tokens2 = sp.list([
@@ -359,6 +381,7 @@ def test_anon_trade():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(1),
+                royalty_addresses= sp.list([]),
             )
         ]),
         proposer = sp.test_account("Administrator").address,
@@ -403,7 +426,7 @@ def test_anon_trade():
       valid=False,
       sender=sp.test_account("Alice").address,
       amount=sp.tez(1),
-      exception='The sent tez amount does not coincide trade proposal amount'
+      exception='The sent tez amount does not coincide trade proposal amount with 5% royalties'
     )
 
     # FAIL: DNE trade ID
@@ -502,6 +525,7 @@ def test_cancel():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(0),
+                royalty_addresses= sp.list([]),
             )
         ]),
         tokens2 = sp.list([
@@ -509,6 +533,7 @@ def test_cancel():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(1),
+                royalty_addresses= sp.list([]),
             )
         ]),
         proposer = sp.test_account("Administrator").address,
@@ -558,6 +583,7 @@ def test_cancel():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(0),
+                royalty_addresses= sp.list([]),
             )
         ]),
         tokens2 = sp.list([
@@ -565,6 +591,7 @@ def test_cancel():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(1),
+                royalty_addresses= sp.list([]),
             )
         ]),
         proposer = sp.test_account("Administrator").address,
@@ -654,6 +681,7 @@ def test_fail_propose():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(0),
+                royalty_addresses= sp.list([]),
             )
         ]),
         tokens2 = sp.list([
@@ -661,6 +689,7 @@ def test_fail_propose():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(1),
+                royalty_addresses= sp.list([]),
             )
         ]),
         proposer = sp.test_account("Administrator").address,
@@ -735,6 +764,7 @@ def test_fail_accept_lost_tokens():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(0),
+                royalty_addresses= sp.list([]),
             )
         ]),
         tokens2 = sp.list([
@@ -742,6 +772,7 @@ def test_fail_accept_lost_tokens():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(1),
+                royalty_addresses= sp.list([]),
             )
         ]),
         proposer = sp.test_account("Administrator").address,
@@ -841,6 +872,7 @@ def test_fail_accept_not_acceptor():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(0),
+                royalty_addresses= sp.list([]),
             )
         ]),
         tokens2 = sp.list([
@@ -848,6 +880,7 @@ def test_fail_accept_not_acceptor():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(1),
+                royalty_addresses= sp.list([]),
             )
         ]),
         proposer = sp.test_account("Administrator").address,
@@ -965,6 +998,7 @@ def test_fail_propose_bad_proposals():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(1),
+                royalty_addresses= sp.list([]),
             )
         ]),
         proposer = sp.test_account("Administrator").address,
@@ -986,6 +1020,7 @@ def test_fail_propose_bad_proposals():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(0),
+                royalty_addresses= sp.list([]),
             )
         ]),
         tokens2 = sp.list(),
@@ -1008,6 +1043,7 @@ def test_fail_propose_bad_proposals():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(0),
+                royalty_addresses= sp.list([]),
             )
         ]),
         tokens2 = sp.list([
@@ -1015,13 +1051,14 @@ def test_fail_propose_bad_proposals():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(1),
+                royalty_addresses= sp.list([]),
             )
         ]),
         proposer = sp.test_account("Administrator").address,
         acceptor = sp.test_account("Alice").address,
     )).run(
         valid = False,
-        exception = "The sent tez amount does not coincide trade proposal amount",
+        exception = "The sent tez amount does not coincide trade proposal amount with 5% royalties",
         sender = sp.test_account("Administrator").address,
         amount = sp.tez(3),
     )
@@ -1036,6 +1073,7 @@ def test_fail_propose_bad_proposals():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(0),
+                royalty_addresses= sp.list([]),
             )
         ]),
         tokens2 = sp.list([
@@ -1043,6 +1081,7 @@ def test_fail_propose_bad_proposals():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(1),
+                royalty_addresses= sp.list([]),
             )
         ]),
         proposer = sp.test_account("Administrator").address,
@@ -1064,6 +1103,7 @@ def test_fail_propose_bad_proposals():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(0),
+                royalty_addresses= sp.list([]),
             )
         ]),
         tokens2 = sp.list([
@@ -1071,6 +1111,7 @@ def test_fail_propose_bad_proposals():
                 amount= sp.nat(1),
                 fa2= fa2_1.address,
                 id= sp.nat(1),
+                royalty_addresses= sp.list([]),
             )
         ]),
         proposer = sp.test_account("Administrator").address,
