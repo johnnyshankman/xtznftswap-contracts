@@ -73,7 +73,6 @@ class XTZFA2Swap(sp.Contract):
         }
         self.init_metadata("contract_metadata", contract_metadata)
 
-
     def check_is_proposer(self, trade_proposal):
         """Checks that the address that called the entry point is
         the user who proposed the trade
@@ -83,15 +82,15 @@ class XTZFA2Swap(sp.Contract):
 
     def check_is_not_proposer(self, trade_proposal):
         """Checks that the address that called the entry point is
-        the user who proposed the trade
+        NOT the user who proposed the trade
         """
         sp.verify((sp.sender != trade_proposal.proposer),
                   message="This can not be executed by the trade proposer")
 
     def check_is_acceptor(self, trade_proposal):
-        """Checks whethere the address that called the entry point is
-        the user who can accept the trade. If the acceptor is this contract's
-        address, anyone can accept the trade so we return true indiscriminately.
+        """Checks whether the address that called the entry point is a
+        user who can accept the trade. If the acceptor is this contract's
+        address, anyone can accept the trade and we return true always.
         """
         sp.verify(((sp.sender == trade_proposal.acceptor) | (sp.self_address == trade_proposal.acceptor)),
                   message="This can only be executed by the trade acceptor")
@@ -102,8 +101,14 @@ class XTZFA2Swap(sp.Contract):
         sp.verify(sp.amount == sp.tez(0),
                   message="The operation does not need tez")
 
+    def check_is_not_acceptor_accepted(self, trade_proposal):
+        """Checks that the acceptor has not already accepted the trade
+        """
+        sp.verify(~trade.acceptor_accepted,
+                    message="The trade is already accepted")
+
     def check_trade_completely_accepted(self, trade):
-        """Checks that no tez were transferred in the operation.
+        """Checks the trade is accepted by both parties
         """
         sp.verify((trade.proposer_accepted == True) & (trade.acceptor_accepted == True),
                   message="Trade is not completely accepted")
@@ -196,7 +201,7 @@ class XTZFA2Swap(sp.Contract):
         sp.verify(~trade.acceptor_accepted,
                     message="The trade is already accepted")
 
-        # Accept the trade
+        # Accept the trade as acceptor
         trade.acceptor_accepted = True
 
         sp.if trade.proposal.mutez_amount2 != sp.mutez(0):
@@ -207,7 +212,7 @@ class XTZFA2Swap(sp.Contract):
         # Triple check the trade is accepted on both sides
         self.check_trade_completely_accepted(trade)
 
-        # Set the trade as executed
+        # Set the trade as executed and begin executing trade behavior
         trade.executed = True
 
         # Help calculate royalty fee and how many accounts to split it between
