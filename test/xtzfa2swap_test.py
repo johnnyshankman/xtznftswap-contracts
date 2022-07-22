@@ -405,12 +405,12 @@ def test_anon_trade():
           operator=swapC.address,
           token_id=1))]).run(sender=sp.test_account("Alice").address)
 
-    # FAIL: cant accept your own trade for somene else
+    # FAIL: cant accept your own trade
     swapC.accept_trade(0).run(
       valid=False,
       amount=sp.tez(2),
       sender=sp.test_account("Administrator").address,
-      exception='FA2_NOT_OPERATOR'
+      exception='This can not be executed by the trade proposer'
     )
 
     # FAIL: someone random cannot accept the trade on your behalf
@@ -458,6 +458,102 @@ def test_anon_trade():
       amount=sp.tez(2),
       exception='Trade already executed'
     )
+
+
+
+@sp.add_test(name = "Propose and accept your own anon trade")
+def test_anon_weird_trade():
+    # Create a scenario
+    scenario = sp.test_scenario()
+
+    # pull out the fa2_admin into a smaller var
+    fa2_admin = sp.test_account("Administrator")
+
+    # Initialize the two FA2 contracts using the other FA2 generator that is popular
+    fa2_1 = fa2Contract2.FA2(
+      administrator=sp.test_account("Administrator").address,
+      metadata=sp.utils.metadata_of_url("ipfs://aaa"))
+    fa2_2 = fa2Contract.FA2(
+        config=fa2Contract.FA2_config(),
+        admin=sp.test_account("Administrator").address,
+        metadata=sp.utils.metadata_of_url("ipfs://bbb"))
+
+    # Add the 2 fa2 contracts to the scenario
+    scenario += fa2_1
+    scenario += fa2_2
+
+    # Instantiate the swap contract
+    swapC = swapContractKYC.XTZFA2Swap()
+
+    # Add the swap contract to the scenario
+    scenario += swapC # is equivalent to `scenario.register(swapC, show = True)`
+
+    # Mint some tokens for the admin
+    fa2_1.mint(amount=sp.nat(1)).run(sender=sp.test_account("Administrator").address)
+    fa2_1.mint(amount=sp.nat(1)).run(sender=sp.test_account("Administrator").address)
+
+    # verify ownership
+    scenario.verify(fa2_1.total_supply(0) == 1)
+    scenario.verify(fa2_1.total_supply(1) == 1)
+    scenario.verify(fa2_1.get_balance(sp.record(owner=sp.test_account("Administrator").address, token_id=0)) == 1)
+    scenario.verify(fa2_1.get_balance(sp.record(owner=sp.test_account("Administrator").address, token_id=1)) == 1)
+
+    # allow the swap contract to operate on the offered tokens
+    fa2_1.update_operators(
+        [sp.variant("add_operator", fa2_2.operator_param.make(
+            owner=sp.test_account("Administrator").address,
+            operator=swapC.address,
+            token_id=0))]).run(sender=sp.test_account("Administrator").address)
+
+    fa2_1.update_operators(
+        [sp.variant("add_operator", fa2_2.operator_param.make(
+            owner=sp.test_account("Administrator").address,
+            operator=swapC.address,
+            token_id=1))]).run(sender=sp.test_account("Administrator").address)
+
+    # verify that admin still owns token 0 and alice token 1
+    scenario.verify(fa2_1.get_balance(sp.record(owner=sp.test_account("Administrator").address, token_id=0)) == 1)
+    scenario.verify(fa2_1.get_balance(sp.record(owner=sp.test_account("Administrator").address, token_id=1)) == 1)
+
+    # propose an anon trade
+    swapC.propose_trade(sp.record(
+        mutez_amount1 = sp.tez(0),
+        mutez_amount2 = sp.tez(0),
+        tokens1 = sp.list([
+            sp.record(
+                amount= sp.nat(1),
+                fa2= fa2_1.address,
+                id= sp.nat(0),
+                royalty_addresses= sp.list([]),
+            )
+        ]),
+        tokens2 = sp.list([
+            sp.record(
+                amount= sp.nat(1),
+                fa2= fa2_1.address,
+                id= sp.nat(1),
+                royalty_addresses= sp.list([]),
+            )
+        ]),
+        proposer = sp.test_account("Administrator").address,
+        acceptor = swapC.address,
+    )).run(
+        sender = sp.test_account("Administrator").address,
+        amount = sp.tez(0),
+    )
+
+    # verify that admin still owns token 0 and token 1
+    scenario.verify(fa2_1.get_balance(sp.record(owner=sp.test_account("Administrator").address, token_id=0)) == 1)
+    scenario.verify(fa2_1.get_balance(sp.record(owner=sp.test_account("Administrator").address, token_id=1)) == 1)
+
+    # verify that you cannot accept it yourself even if you have the tokens
+    swapC.accept_trade(0).run(
+      sender=sp.test_account("Administrator").address,
+      amount=sp.tez(0),
+      valid=False,
+      exception='This can not be executed by the trade proposer'
+    )
+
 
 @sp.add_test(name = "Propose and cancel a trade")
 def test_cancel():
