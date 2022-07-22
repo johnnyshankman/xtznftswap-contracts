@@ -227,25 +227,27 @@ class XTZFA2Swap(sp.Contract):
         sp.for token in trade.proposal.tokens1:
             royaltyDenom1Local.value = royaltyDenom1Local.value + sp.len(token.royalty_addresses)
         # Transfer the locked tez from ESCROW/proposer to acceptor if there is tez
-        sp.if ((royaltyDenom1Local.value > 0) & (trade.proposal.mutez_amount1 != sp.mutez(0))):
-            # Calculate 5% royalties for acceptor side
-            royalties1 = sp.split_tokens(trade.proposal.mutez_amount1, 1, 20)
-            # Send proposed trade amount to user minus the 5% royalty fee
-            sp.send(sp.sender, (trade.proposal.mutez_amount1 - royalties1))
-        sp.else:
-            sp.send(sp.sender, trade.proposal.mutez_amount1)
+        sp.if (trade.proposal.mutez_amount1 != sp.mutez(0)):
+            sp.if (royaltyDenom1Local.value > 0):
+                # Calculate 5% royalties for acceptor side
+                royalties1 = sp.split_tokens(trade.proposal.mutez_amount1, 1, 20)
+                # Send proposed trade amount to user minus the 5% royalty fee
+                sp.send(sp.sender, (trade.proposal.mutez_amount1 - royalties1))
+            sp.else:
+                sp.send(sp.sender, trade.proposal.mutez_amount1)
 
         # Find sum of all royalty addresses to use as denominator later for splits
         sp.for token in trade.proposal.tokens2:
             royaltyDenom2Local.value = royaltyDenom2Local.value + sp.len(token.royalty_addresses)
         # Transfer this tx's tez from acceptor to proposer if there is tez
-        sp.if ((royaltyDenom2Local.value > 0) & (trade.proposal.mutez_amount2 != sp.mutez(0))):
-            # Calculate 5% royalties for acceptor side
-            royalties2 = sp.split_tokens(trade.proposal.mutez_amount2, 1, 20)
-            # Send proposed trade amount to user minus the 5% royalty fee
-            sp.send(trade.proposal.proposer, (trade.proposal.mutez_amount2 - royalties2))
-        sp.else:
-            sp.send(trade.proposal.proposer, (trade.proposal.mutez_amount2))
+        sp.if (trade.proposal.mutez_amount2 != sp.mutez(0)):
+            sp.if (royaltyDenom2Local.value > 0):
+                # Calculate 5% royalties for acceptor side
+                royalties2 = sp.split_tokens(trade.proposal.mutez_amount2, 1, 20)
+                # Send proposed trade amount to user minus the 5% royalty fee
+                sp.send(trade.proposal.proposer, (trade.proposal.mutez_amount2 - royalties2))
+            sp.else:
+                sp.send(trade.proposal.proposer, (trade.proposal.mutez_amount2))
 
         # Transfer proposer's tokens to acceptor
         sp.for token in trade.proposal.tokens1:
