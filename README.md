@@ -76,7 +76,7 @@ This has fallout. If someone were to transfer/sell their token away, then buy it
 
 ## References
 
-### Random FA2 Testnet Contracts:
+### FA2 Minting Testnet Contracts:
 * https://better-call.dev/ithacanet/KT1LofkgTJTpXvjscjgsZmPUSxP2iUimni8m/operations
 * https://better-call.dev/jakartanet/KT1HT4ju6pYDsKVZc9zHSvS5DDkqSyLncTWe/interact/update_operators
 
@@ -87,7 +87,7 @@ This has fallout. If someone were to transfer/sell their token away, then buy it
 * https://smartpy.io/ide
 * https://smartpy.io/docs/
 
-###Inspiration:
+### Inspiration:
 * https://github.com/jagracar/tezos-smart-contracts/blob/main/python/contracts/fa2Contract.py
 
 ### Faucet tutorial to get xtz on any test chain using CLI:
