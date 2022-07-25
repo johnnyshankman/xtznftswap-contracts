@@ -37,7 +37,9 @@ def test_kyc_trade():
     scenario += fa2_2
 
     # Instantiate the swap contract
-    swapC = swapContractKYC.XTZFA2Swap()
+    swapC = swapContractKYC.XTZFA2Swap(
+      administrator=sp.test_account("Administrator").address,
+    )
 
     # Add the swap contract to the scenario
     scenario += swapC # is equivalent to `scenario.register(swapC, show = True)`
@@ -295,7 +297,9 @@ def test_anon_trade():
     scenario += fa2_2
 
     # Instantiate the swap contract
-    swapC = swapContractKYC.XTZFA2Swap()
+    swapC = swapContractKYC.XTZFA2Swap(
+      administrator=sp.test_account("Administrator").address,
+    )
 
     # Add the swap contract to the scenario
     scenario += swapC # is equivalent to `scenario.register(swapC, show = True)`
@@ -460,7 +464,6 @@ def test_anon_trade():
     )
 
 
-
 @sp.add_test(name = "Propose and accept your own anon trade")
 def test_anon_weird_trade():
     # Create a scenario
@@ -483,7 +486,9 @@ def test_anon_weird_trade():
     scenario += fa2_2
 
     # Instantiate the swap contract
-    swapC = swapContractKYC.XTZFA2Swap()
+    swapC = swapContractKYC.XTZFA2Swap(
+      administrator=sp.test_account("Administrator").address,
+    )
 
     # Add the swap contract to the scenario
     scenario += swapC # is equivalent to `scenario.register(swapC, show = True)`
@@ -578,7 +583,9 @@ def test_cancel():
     scenario += fa2_2
 
     # Instantiate the swap contract
-    swapC = swapContractKYC.XTZFA2Swap()
+    swapC = swapContractKYC.XTZFA2Swap(
+      administrator=sp.test_account("Administrator").address,
+    )
 
     # Add the swap contract to the scenario
     scenario += swapC # is equivalent to `scenario.register(swapC, show = True)`
@@ -720,7 +727,9 @@ def test_fail_propose():
     scenario += fa2_2
 
     # Instantiate the swap contract
-    swapC = swapContractKYC.XTZFA2Swap()
+    swapC = swapContractKYC.XTZFA2Swap(
+      administrator=sp.test_account("Administrator").address,
+    )
 
     # Add the swap contract to the scenario
     scenario += swapC # is equivalent to `scenario.register(swapC, show = True)`
@@ -821,7 +830,9 @@ def test_fail_accept_lost_tokens():
     scenario += fa2_2
 
     # Instantiate the swap contract
-    swapC = swapContractKYC.XTZFA2Swap()
+    swapC = swapContractKYC.XTZFA2Swap(
+      administrator=sp.test_account("Administrator").address,
+    )
 
     # Add the swap contract to the scenario
     scenario += swapC # is equivalent to `scenario.register(swapC, show = True)`
@@ -929,7 +940,9 @@ def test_fail_accept_not_acceptor():
     scenario += fa2_2
 
     # Instantiate the swap contract
-    swapC = swapContractKYC.XTZFA2Swap()
+    swapC = swapContractKYC.XTZFA2Swap(
+      administrator=sp.test_account("Administrator").address,
+    )
 
     # Add the swap contract to the scenario
     scenario += swapC # is equivalent to `scenario.register(swapC, show = True)`
@@ -1037,7 +1050,9 @@ def test_fail_propose_bad_proposals():
     scenario += fa2_2
 
     # Instantiate the swap contract
-    swapC = swapContractKYC.XTZFA2Swap()
+    swapC = swapContractKYC.XTZFA2Swap(
+      administrator=sp.test_account("Administrator").address,
+    )
 
     # Add the swap contract to the scenario
     scenario += swapC # is equivalent to `scenario.register(swapC, show = True)`
@@ -1217,4 +1232,98 @@ def test_fail_propose_bad_proposals():
         exception = "This can only be executed by the trade proposer",
         sender = sp.test_account("Robert").address,
         amount = sp.tez(3),
+    )
+
+@sp.add_test(name = "Fail to propose bc denylisted")
+def test_denylist_propose():
+    # Create a scenario
+    scenario = sp.test_scenario()
+
+    # pull out the fa2_admin into a smaller var
+    fa2_admin = sp.test_account("Administrator")
+
+    # Initialize the two FA2 contracts using the other FA2 generator that is popular
+    fa2_1 = fa2Contract2.FA2(
+      administrator=sp.test_account("Administrator").address,
+      metadata=sp.utils.metadata_of_url("ipfs://aaa"))
+    fa2_2 = fa2Contract.FA2(
+        config=fa2Contract.FA2_config(),
+        admin=sp.test_account("Administrator").address,
+        metadata=sp.utils.metadata_of_url("ipfs://bbb"))
+
+    # Add the 2 fa2 contracts to the scenario
+    scenario += fa2_1
+    scenario += fa2_2
+
+    # Instantiate the swap contract
+    swapC = swapContractKYC.XTZFA2Swap(
+      administrator=sp.test_account("Administrator").address,
+    )
+
+    # Add the swap contract to the scenario
+    scenario += swapC # is equivalent to `scenario.register(swapC, show = True)`
+
+    # Mint some tokens for the involved users, admin token 0 and alice token 1
+    fa2_1.mint(amount=sp.nat(1)).run(sender=sp.test_account("Administrator").address)
+    fa2_1.mint(amount=sp.nat(1)).run(sender=sp.test_account("Administrator").address)
+    fa2_1.transfer([
+      sp.record(
+          from_=sp.test_account("Administrator").address,
+          txs=[sp.record(
+            to_=sp.test_account("Alice").address,
+            token_id=1,
+            amount=1
+          )]
+      )]).run(
+      sender=sp.test_account("Administrator").address
+    )
+
+    # verify that admin owns token 0 and alice owns token 1
+    scenario.verify(fa2_1.total_supply(0) == 1)
+    scenario.verify(fa2_1.total_supply(1) == 1)
+    scenario.verify(fa2_1.get_balance(sp.record(owner=sp.test_account("Administrator").address, token_id=0)) == 1)
+    scenario.verify(fa2_1.get_balance(sp.record(owner=sp.test_account("Alice").address, token_id=1)) == 1)
+
+    # allow the swap contract to operate on the offered tokens
+    fa2_1.update_operators(
+        [sp.variant("add_operator", fa2_2.operator_param.make(
+            owner=sp.test_account("Administrator").address,
+            operator=swapC.address,
+            token_id=0))]).run(sender=sp.test_account("Administrator").address)
+
+    # add the fa2_1 contract to the denylist as denied
+    swapC.modify_denylist(sp.record(
+        contract = fa2_1.address,
+        deny = True,
+    )).run(
+        sender = sp.test_account("Administrator").address,
+    )
+
+    # propose a trade using the fa2_1 tokens so that it fails
+    swapC.propose_trade(sp.record(
+        mutez_amount1 = sp.tez(1),
+        mutez_amount2 = sp.tez(2),
+        tokens1 = sp.list([
+            sp.record(
+                amount= sp.nat(1),
+                fa2= fa2_1.address,
+                id= sp.nat(0),
+                royalty_addresses= sp.list([]),
+            )
+        ]),
+        tokens2 = sp.list([
+            sp.record(
+                amount= sp.nat(1),
+                fa2= fa2_1.address,
+                id= sp.nat(1),
+                royalty_addresses= sp.list([]),
+            )
+        ]),
+        proposer = sp.test_account("Administrator").address,
+        acceptor = swapC.address,
+    )).run(
+        sender = sp.test_account("Administrator").address,
+        amount = sp.tez(1),
+        valid = False,
+        exception = 'The contract is on the denylist'
     )

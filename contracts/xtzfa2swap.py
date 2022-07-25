@@ -38,21 +38,30 @@ class XTZFA2Swap(sp.Contract):
           ("proposer", ("acceptor", ("mutez_amount1", ("mutez_amount2", ("tokens1", "tokens2")
       )))))
 
-    def __init__(self):
+    DENY_ENTRYPOINT_PARAMETER_TYPES = sp.TRecord(
+      contract=sp.TAddress,
+      deny=sp.TBool
+    )
+
+    def __init__(self, administrator):
         # Define the contract storage data types for clarity
         self.init_type(sp.TRecord(
+            administrator=sp.TAddress,
             trades=sp.TBigMap(sp.TNat, sp.TRecord(
                 proposer_accepted=sp.TBool,
                 acceptor_accepted=sp.TBool,
                 executed=sp.TBool,
                 proposal=XTZFA2Swap.TRADE_PROPOSAL_TYPE)),
             counter=sp.TNat,
+            denylist=sp.TBigMap(sp.TAddress, sp.TBool),
             metadata=sp.TBigMap(sp.TString, sp.TBytes)))
 
         # Initialize the contract storage
         self.init(
+            administrator=administrator,
             trades=sp.big_map(), # not passed in
             counter=0, # not passed in
+            denylist=sp.big_map(),
             metadata=sp.big_map(), # not passed in
         )
 
@@ -72,6 +81,12 @@ class XTZFA2Swap(sp.Contract):
             "views": [],
         }
         self.init_metadata("contract_metadata", contract_metadata)
+
+    def check_is_administrator(self):
+        """Checks that the address that called the entry point is the contract
+        administrator.
+        """
+        sp.verify(sp.sender == self.data.administrator, message="NOT_ADMIN")
 
     def check_is_proposer(self, trade_proposal):
         """Checks that the address that called the entry point is
@@ -125,6 +140,14 @@ class XTZFA2Swap(sp.Contract):
         sp.verify(~self.data.trades[trade_id].executed,
                   message="Trade already executed")
 
+    def check_contract_is_allowed(self, contract):
+        """Checks that the trade id corresponds to an existing trade that has
+        not been executed.
+        """
+        # Check that the trade was not executed before
+        sp.verify(((~self.data.denylist.contains(contract)) | (self.data.denylist[contract] == False)),
+                  message="The contract is on the denylist")
+
 
     @sp.entry_point
     def propose_trade(self, trade_proposal):
@@ -153,6 +176,8 @@ class XTZFA2Swap(sp.Contract):
 
         # Non-custodially ensure they own every token in the proposal
         sp.for token in trade_proposal.tokens1:
+            # Check that the token is allowed to be listed
+            self.check_contract_is_allowed(token.fa2)
             # Checks they own all editions by sending them to the contract and back.
             # This is intentionally a no-op and two separate txs. Why? Some FA2 contracts dont
             # allow self sending, we cant use get_balance since it will not return the value
@@ -251,6 +276,8 @@ class XTZFA2Swap(sp.Contract):
 
         # Transfer proposer's tokens to acceptor
         sp.for token in trade.proposal.tokens1:
+            # Check that the token is allowed to be traded still
+            self.check_contract_is_allowed(token.fa2)
             # transfer FA2
             self.fa2_transfer(
                 fa2=token.fa2,
@@ -265,6 +292,8 @@ class XTZFA2Swap(sp.Contract):
 
         # Transfer acceptor's tokens to proposer
         sp.for token in trade.proposal.tokens2:
+            # Check that the token is allowed to be traded still
+            self.check_contract_is_allowed(token.fa2)
             # transfer FA2
             self.fa2_transfer(
                 fa2=token.fa2,
@@ -306,6 +335,31 @@ class XTZFA2Swap(sp.Contract):
         sp.if trade.proposal.mutez_amount1 != sp.mutez(0):
             sp.send(sp.sender, trade.proposal.mutez_amount1)
 
+    @sp.entry_point
+    def modify_denylist(self, denyRec):
+        """Adds an FA2 contract address to the list of contracts that have
+           requested denylisting.
+        """
+        # Define the input parameter data type
+        sp.set_type(denyRec, XTZFA2Swap.DENY_ENTRYPOINT_PARAMETER_TYPES)
+
+        self.check_is_administrator();
+
+        # Throw the contract address on the list
+        self.data.denylist[denyRec.contract] = denyRec.deny;
+
+    @sp.entry_point
+    def modify_administrator(self, administrator):
+        """Allows the administrator to assign a new administrator
+        """
+        # Define the input parameter data type
+        sp.set_type(administrator, sp.TAddress)
+
+        self.check_is_administrator();
+
+        # Throw the contract address on the list
+        self.data.administrator = administrator;
+
 
     def fa2_transfer(self, fa2, from_, to_, token_id, token_amount):
         """Transfers a number of editions of a FA2 token between two addresses.
@@ -339,4 +393,6 @@ class XTZFA2Swap(sp.Contract):
 
 
 # Add a compilation target initialized to some address as the contract manager
-sp.add_compilation_target("xtznftswap", XTZFA2Swap())
+sp.add_compilation_target("xtznftswap", XTZFA2Swap(
+  administrator=sp.address("tz1bLQpoDcpbmEExv77ZptR9KmdXkyQiT7tk"),
+))
