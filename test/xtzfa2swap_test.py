@@ -1327,3 +1327,19 @@ def test_denylist_propose():
         valid = False,
         exception = 'The contract is on the denylist'
     )
+
+    # try to swap the admin for testing purposes
+    # add the fa2_1 contract to the denylist as denied
+    swapC.modify_administrator(sp.test_account("Alice").address).run(
+        sender = sp.test_account("Administrator").address,
+    )
+
+    # expect this to fail because the admininistrator on contract has changed
+    swapC.modify_denylist(sp.record(
+        contract = fa2_1.address,
+        deny = True,
+    )).run(
+        sender = sp.test_account("Administrator").address,
+        valid = False,
+        exception = 'NOT_ADMIN',
+    )
