@@ -43,6 +43,11 @@ class XTZFA2Swap(sp.Contract):
       deny=sp.TBool
     )
 
+    MODIFY_ADMINS_ENTRYPOINT_PARAMETER_TYPES = sp.TRecord(
+      admin=sp.TAddress,
+      isAdmin=sp.TBool
+    )
+
     def __init__(self, administrator):
         # Define the contract storage data types for clarity
         self.init_type(sp.TRecord(
@@ -53,14 +58,17 @@ class XTZFA2Swap(sp.Contract):
                 executed=sp.TBool,
                 proposal=XTZFA2Swap.TRADE_PROPOSAL_TYPE)),
             counter=sp.TNat,
+            admins=sp.TMap(sp.TAddress, sp.TBool),
             denylist=sp.TBigMap(sp.TAddress, sp.TBool),
             metadata=sp.TBigMap(sp.TString, sp.TBytes)))
 
         # Initialize the contract storage
+        # By default ensure the passed in administrator is also in the admins array
         self.init(
             administrator=administrator,
             trades=sp.big_map(), # not passed in
             counter=0, # not passed in
+            admins=sp.map(l = {administrator: True}, tkey = sp.TAddress, tvalue = sp.TBool),
             denylist=sp.big_map(),
             metadata=sp.big_map(), # not passed in
         )
@@ -86,7 +94,9 @@ class XTZFA2Swap(sp.Contract):
         """Checks that the address that called the entry point is the contract
         administrator.
         """
-        sp.verify(sp.sender == self.data.administrator, message="NOT_ADMIN")
+        # Check that the trade id is present in the trades big map
+        sp.verify((self.data.admins.contains(sp.sender) & (self.data.admins[sp.sender] == True)) | (sp.sender == self.data.administrator),
+                  message="NOT_ADMIN")
 
     def check_is_proposer(self, trade_proposal):
         """Checks that the address that called the entry point is
@@ -360,6 +370,18 @@ class XTZFA2Swap(sp.Contract):
         # Throw the contract address on the list
         self.data.administrator = administrator;
 
+    @sp.entry_point
+    def modify_admins(self, modifyAdmin):
+        """Allows the administrator to assign a new administrator
+        """
+        # Define the input parameter data type
+        sp.set_type(modifyAdmin, XTZFA2Swap.MODIFY_ADMINS_ENTRYPOINT_PARAMETER_TYPES)
+
+        self.check_is_administrator();
+
+        # Throw the contract address on the list
+        self.data.admins[modifyAdmin.admin] = modifyAdmin.isAdmin;
+
 
     def fa2_transfer(self, fa2, from_, to_, token_id, token_amount):
         """Transfers a number of editions of a FA2 token between two addresses.
@@ -392,7 +414,11 @@ class XTZFA2Swap(sp.Contract):
             destination=c)
 
 
-# Add a compilation target initialized to some address as the contract manager
-sp.add_compilation_target("xtznftswap", XTZFA2Swap(
+# Add a compilation target initialized to my ghostnet test wallet as administrator
+sp.add_compilation_target("xtznftswap-ghostnet", XTZFA2Swap(
   administrator=sp.address("tz1bLQpoDcpbmEExv77ZptR9KmdXkyQiT7tk"),
+))
+# Add a compilation target initialized to my actual wallet as administrator
+sp.add_compilation_target("xtznftswap-mainnet", XTZFA2Swap(
+  administrator=sp.address("tz1gp2XcTnpGxYcfYvyukB8c6B7iu3VRKp8B"),
 ))
