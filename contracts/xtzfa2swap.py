@@ -266,8 +266,9 @@ class XTZFA2Swap(sp.Contract):
             sp.if (royaltyDenom1Local.value > 0):
                 # Calculate 5% royalties for acceptor side
                 royalties1 = sp.split_tokens(trade.proposal.mutez_amount1, 1, 20)
-                # Send proposed trade amount to user minus the 5% royalty fee
-                sp.send(sp.sender, (trade.proposal.mutez_amount1 - royalties1))
+                sp.if (trade.proposal.mutez_amount1 - royalties1 != sp.mutez(0)):
+                    # Send proposed trade amount to user minus the 5% royalty fee
+                    sp.send(sp.sender, (trade.proposal.mutez_amount1 - royalties1))
             sp.else:
                 sp.send(sp.sender, trade.proposal.mutez_amount1)
 
@@ -279,8 +280,9 @@ class XTZFA2Swap(sp.Contract):
             sp.if (royaltyDenom2Local.value > 0):
                 # Calculate 5% royalties for acceptor side
                 royalties2 = sp.split_tokens(trade.proposal.mutez_amount2, 1, 20)
-                # Send proposed trade amount to user minus the 5% royalty fee
-                sp.send(trade.proposal.proposer, (trade.proposal.mutez_amount2 - royalties2))
+                sp.if (trade.proposal.mutez_amount2 - royalties2 != sp.mutez(0)):
+                    # Send proposed trade amount to user minus the 5% royalty fee
+                    sp.send(trade.proposal.proposer, (trade.proposal.mutez_amount2 - royalties2))
             sp.else:
                 sp.send(trade.proposal.proposer, (trade.proposal.mutez_amount2))
 
@@ -298,7 +300,8 @@ class XTZFA2Swap(sp.Contract):
             # Give every royalty address its cut of the 5% royalty
             sp.for royalty_address in token.royalty_addresses:
                 royaltyCut = sp.split_tokens(royalties1, 1, royaltyDenom1Local.value)
-                sp.send(royalty_address, royaltyCut)
+                sp.if (royaltyCut != sp.mutez(0)):
+                    sp.send(royalty_address, royaltyCut)
 
         # Transfer acceptor's tokens to proposer
         sp.for token in trade.proposal.tokens2:
@@ -314,7 +317,8 @@ class XTZFA2Swap(sp.Contract):
             # Give every royalty address its cut of the 5% royalty
             sp.for royalty_address in token.royalty_addresses:
                 royaltyCut = sp.split_tokens(royalties2, 1, royaltyDenom2Local.value)
-                sp.send(royalty_address, royaltyCut)
+                sp.if (royaltyCut != sp.mutez(0)):
+                    sp.send(royalty_address, royaltyCut)
 
     @sp.entry_point
     def cancel_trade_proposal(self, trade_id):
