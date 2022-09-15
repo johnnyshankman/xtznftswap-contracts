@@ -7,12 +7,11 @@ import smartpy as sp
 # the contract to test
 swapContractKYC = sp.io.import_script_from_url(
     "file:contracts/xtzfa2swap.py")
-
 # import two very common implementations of a FA2 token to test against
 fa2Contract = sp.io.import_script_from_url(
-    "file:fa2TestContract.py")
+    "file:fa2-mocks/fa2TestContract.py")
 fa2Contract2 = sp.io.import_script_from_url(
-    "file:fa2.py")
+    "file:fa2-mocks/fa2.py")
 
 
 @sp.add_test(name = "Propose and accept a KYC trade")
