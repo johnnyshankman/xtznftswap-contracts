@@ -35,6 +35,9 @@ jobs:
       - name: Ensure Contracts Compile
         run: npm run compile
 
+      - name: Ensure Contracts Pass Tests
+        run: npm run test
+
       - name: get-npm-version
         id: package-version
         uses: martinbeentjes/npm-get-version-action@main
