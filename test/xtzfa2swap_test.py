@@ -241,7 +241,7 @@ def test_kyc_trade():
 
     # FAIL: can't accept the same trade twice
     swapC.accept_trade(0).run(
-      valid=False,
+      valid=True,
       sender=sp.test_account("Alice").address,
       amount=sp.tez(2),
     )
