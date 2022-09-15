@@ -1,5 +1,7 @@
 # XTZNFTSWAP Tezos Contracts
 
+![Build](https://github.com/johnnyshankman/xtznftswap-contracts/actions/workflows/build.yml/badge.svg)
+
 This repo uses SmartPy CLI to compile and unit test the core xtznftswap contract used by [https://xtznftswap.xyz](https://xtznftswap.xyz)
 
 ## Tests
