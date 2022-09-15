@@ -6,7 +6,7 @@ This repo uses SmartPy CLI to compile and unit test the core xtznftswap contract
 
 ## Tests
 
-To run tests be sure to have [SmartPy CLI](https://smartpy.io/docs/cli/) installed globally on your machine. After that you can use npm to run the tests with `npm run test`. Output for each test can be be found in `compile/` after running.
+To run tests be sure to have [SmartPy CLI](https://smartpy.io/docs/cli/) installed globally on your machine. After that you can use npm to run the tests with `npm run test`. Output for each test can be be found in `compile/` after running. Inspect the `log.html` file to visually see each step of the test and validate that things like Tezos balances of each account and internal contract storage are exactly what you expect.
 
 ## Compilation
 
