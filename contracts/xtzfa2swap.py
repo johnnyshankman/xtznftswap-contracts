@@ -1,4 +1,3 @@
-
 import smartpy as sp
 
 class XTZFA2Swap(sp.Contract):
