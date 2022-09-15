@@ -1,6 +1,6 @@
-# xtznftswap Tezos Contracts
+# XTZNFTSWAP Tezos Contracts
 
-This repo uses SmartPy CLI to compile and unit test the core xtznftswap contract used by xtznftswap.xyz
+This repo uses SmartPy CLI to compile and unit test the core xtznftswap contract used by [https://xtznftswap.xyz](https://xtznftswap.xyz)
 
 ## Tests
 
@@ -71,17 +71,20 @@ fa2Contract.methods.update_operators([{
 
 Operators for an FA2 compliant token are *not* reset upon transfer.
 
-This has fallout. If someone were to transfer/sell their token away, then buy it back, any operators they previously had set would come back to life. It's what I call the Orderbook Enigma because in the orderbook context, this means any valid trades you proposed are now active again unless manually cancelled.
+This has fallout. If someone were to transfer/sell their token away, then buy it back, any operators they previously had set would come back to life. It's what I call the Orderbook Enigma because in the orderbook context, this means any valid trades you proposed are now active again unless manually cancelled. *Be very wary of this* and use `remove_operator` upon cancelling or accepting a trade.
+
+### Current Deploys for Inspecting
+
+Use the following mainnet and testnet contract to understand the Storage layout and interaction available publicly on chain.
+
+* https://better-call.dev/mainnet/KT1KR5VzaRyDsLV39PK5C94Tw9vto5kGNVvk
+* https://better-call.dev/ghostnet/KT1Lq11zqBKHhpmTgonr68zkNN8WyepyprZh
 
 
 ## References
 
-### FA2 Minting Testnet Contracts:
-* https://better-call.dev/ithacanet/KT1LofkgTJTpXvjscjgsZmPUSxP2iUimni8m/operations
-* https://better-call.dev/jakartanet/KT1HT4ju6pYDsKVZc9zHSvS5DDkqSyLncTWe/interact/update_operators
-
-### In case you need some metadata to test with:
-* https://better-call.dev/mainnet/big_map/23516/keys
+### FA2 Minting Testnet Contract:
+* https://better-call.dev/ghostnet/KT1KdrJroMbVfgQzhNSzFFtCCgB9yBm51ynG/interact/update_operators
 
 ### SmartPy Reference IDE and Documentation:
 * https://smartpy.io/ide
@@ -90,5 +93,9 @@ This has fallout. If someone were to transfer/sell their token away, then buy it
 ### Inspiration:
 * https://github.com/jagracar/tezos-smart-contracts/blob/main/python/contracts/fa2Contract.py
 
-### Faucet tutorial to get xtz on any test chain using CLI:
+### Faucet tutorial to get xtz on any Testnet chain using CLI:
 * https://coinsbench.com/tezos-faucet-how-to-get-free-tezos-for-hangzhou-test-blockchain-36fd188515b7
+
+### In case you need some metadata to test with:
+* https://better-call.dev/mainnet/big_map/23516/keys
+
