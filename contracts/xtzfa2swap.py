@@ -17,8 +17,12 @@ class XTZFA2Swap(sp.Contract):
         # Where to pay the 5% artist royalty
         royalty_addresses=sp.TList(sp.TAddress),
     ).layout(
-      ("fa2", ("id", ("amount", "royalty_addresses"))
-    ))
+        ("fa2",
+            ("id",
+                ("amount", "royalty_addresses")
+            )
+        )
+    )
 
     TRADE_PROPOSAL_TYPE = sp.TRecord(
         # The first user involved in the trade
@@ -35,28 +39,40 @@ class XTZFA2Swap(sp.Contract):
         # The second user's list of FA2 tokens to trade
         tokens2=sp.TList(TOKEN_TYPE)
       ).layout(
-          ("proposer", ("acceptor", ("mutez_amount1", ("mutez_amount2", ("tokens1", "tokens2")
-      )))))
+          ("proposer",
+              ("acceptor",
+                  ("mutez_amount1",
+                      ("mutez_amount2",
+                          ("tokens1", "tokens2")
+                      )
+                  )
+              )
+          )
+      )
+
+    TRADE_TYPE = sp.TRecord(
+        proposer_accepted=sp.TBool,
+        acceptor_accepted=sp.TBool,
+        executed=sp.TBool,
+        executor=sp.TAddress,
+        proposal=TRADE_PROPOSAL_TYPE
+    )
 
     DENY_ENTRYPOINT_PARAMETER_TYPES = sp.TRecord(
-      contract=sp.TAddress,
-      deny=sp.TBool
+        contract=sp.TAddress,
+        deny=sp.TBool
     )
 
     MODIFY_ADMINS_ENTRYPOINT_PARAMETER_TYPES = sp.TRecord(
-      admin=sp.TAddress,
-      isAdmin=sp.TBool
+        admin=sp.TAddress,
+        isAdmin=sp.TBool
     )
 
     def __init__(self, administrator):
         # Define the contract storage data types for clarity
         self.init_type(sp.TRecord(
             administrator=sp.TAddress,
-            trades=sp.TBigMap(sp.TNat, sp.TRecord(
-                proposer_accepted=sp.TBool,
-                acceptor_accepted=sp.TBool,
-                executed=sp.TBool,
-                proposal=XTZFA2Swap.TRADE_PROPOSAL_TYPE)),
+            trades=sp.TBigMap(sp.TNat, XTZFA2Swap.TRADE_TYPE),
             counter=sp.TNat,
             admins=sp.TMap(sp.TAddress, sp.TBool),
             denylist=sp.TBigMap(sp.TAddress, sp.TBool),
@@ -64,13 +80,14 @@ class XTZFA2Swap(sp.Contract):
 
         # Initialize the contract storage
         # By default ensure the passed in administrator is also in the admins array
+        # Ensures the first trade is trade id 0
         self.init(
             administrator=administrator,
-            trades=sp.big_map(), # not passed in
-            counter=0, # not passed in
+            trades=sp.big_map(),
+            counter=0,
             admins=sp.map(l = {administrator: True}, tkey = sp.TAddress, tvalue = sp.TBool),
             denylist=sp.big_map(),
-            metadata=sp.big_map(), # not passed in
+            metadata=sp.big_map(),
         )
 
         # Build TZIP-016 contract metadata
@@ -80,7 +97,7 @@ class XTZFA2Swap(sp.Contract):
             "description" : "A contract for securely and trustlessly trading any bundle of FA2 tokens & Tezos for another bundle of FA2 tokens & Tezos. The acceptor of the trade can be specified, or left open-ended for anyone to accept. Simply add this contract as an operator for your tokens, then propose or accept any trades involving those tokens. After cancelling a propsoal, it is suggested that you remove this contract as an operator of the involved tokens.",
             "version": "v1.0.0",
             "authors": ["White Lights <'https://twitter.com/iamwhitelights'>"],
-            "homepage": "https://xtznftswap.io",
+            "homepage": "https://xtznftswap.xyz",
             "source": {
                 "tools": ["SmartPy 0.13.0"],
                 "location": "https://github.com/johnnyshankman/xtznftswap-contracts/"
@@ -208,10 +225,12 @@ class XTZFA2Swap(sp.Contract):
 
         # Update the trades order book bigmap with the new trade information
         # NOTE: By default, you're considered to have accepted your own trade
+        # NOTE: By default, the executor is this contract to signify no executor
         self.data.trades[self.data.counter] = sp.record(
             proposer_accepted=True,
             acceptor_accepted=False,
             executed=False,
+            executor=sp.self_address,
             proposal=trade_proposal)
 
         # Increase the trade id counter for next proposal
@@ -249,6 +268,7 @@ class XTZFA2Swap(sp.Contract):
 
         # Set the trade as executed and begin executing trade behavior
         trade.executed = True
+        trade.executor = sp.sender
 
         # Help calculate royalty fee and how many accounts to split it between
         royalties1 = sp.mutez(0)
@@ -399,12 +419,18 @@ class XTZFA2Swap(sp.Contract):
                         sp.TRecord(
                             to_=sp.TAddress,
                             token_id=sp.TNat,
-                            amount=sp.TNat).layout(("to_", ("token_id", "amount")))
+                            amount=sp.TNat
+                        ).layout(
+                            ("to_",
+                                ("token_id", "amount")
+                            )
                         )
                     )
-                ),
+                )
+            ),
             address=fa2,
-            entry_point="transfer").open_some()
+            entry_point="transfer"
+        ).open_some()
 
         # Transfer the FA2 token editions to the new address
         sp.transfer(
@@ -413,12 +439,15 @@ class XTZFA2Swap(sp.Contract):
                 txs=sp.list([sp.record(
                     to_=to_,
                     token_id=token_id,
-                    amount=token_amount)]))]),
+                    amount=token_amount
+                )])
+            )]),
             amount=sp.mutez(0),
-            destination=c)
+            destination=c
+        )
 
 
-# Add a compilation target initialized to my ghostnet test wallet as administrator
+# Add a compilation target initialized to ghostnet test wallet as administrator
 sp.add_compilation_target("xtznftswap-ghostnet", XTZFA2Swap(
   administrator=sp.address("tz1bLQpoDcpbmEExv77ZptR9KmdXkyQiT7tk"),
 ))
