@@ -86,7 +86,9 @@ class XTZFA2Swap(sp.Contract):
             counter=0,
             admins=sp.map(l = {administrator: True}, tkey = sp.TAddress, tvalue = sp.TBool),
             denylist=sp.big_map(),
-            metadata=sp.big_map(),
+            metadata=sp.utils.metadata_of_url(
+                "https://arweave.net/7mcNzc3qe3D7M7SeebIpL_BtX1gbVcP0RRtK9pzBKX4"
+            )
         )
 
         # Build TZIP-016 contract metadata
