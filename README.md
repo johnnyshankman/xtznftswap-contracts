@@ -87,7 +87,7 @@ This has fallout. If someone were to transfer/sell their token away, then buy it
 
 Use the following mainnet and testnet contract to understand the Storage layout and interaction available publicly on chain.
 
-* https://better-call.dev/mainnet/KT1KR5VzaRyDsLV39PK5C94Tw9vto5kGNVvk
+* https://better-call.dev/mainnet/KT1Kbw5BZLW6Ju6XAmPJyjDuSMQKKBQHGzdi
 * https://better-call.dev/ghostnet/KT1Lq11zqBKHhpmTgonr68zkNN8WyepyprZh
 
 
