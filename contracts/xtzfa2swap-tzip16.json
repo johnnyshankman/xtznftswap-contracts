@@ -1,0 +1,23 @@
+{
+    "name": "XTZFA2Swap",
+    "description": "A contract for securely and trustlessly trading any bundle of FA2 tokens & Tezos for another bundle of FA2 tokens & Tezos. The acceptor of the trade can be specified, or left open-ended for anyone to accept. Simply add this contract as an operator for your tokens, then propose or accept any trades involving those tokens. After cancelling a propsoal, it is suggested that you remove this contract as an operator of the involved tokens.",
+    "version": "v1.0.0",
+    "authors":
+    [
+        "White Lights <'https://twitter.com/iamwhitelights'>"
+    ],
+    "homepage": "https://xtznftswap.xyz",
+    "source":
+    {
+        "tools":
+        [
+            "SmartPy 0.13.0"
+        ],
+        "location": "https://github.com/johnnyshankman/xtznftswap-contracts/"
+    },
+    "interfaces":
+    [
+        "TZIP-016"
+    ],
+    "views":[]
+}
