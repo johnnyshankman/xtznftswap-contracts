@@ -1,4 +1,4 @@
-# Tezos FA2.1 NFT Swapping/Bartering Contracts
+# Tezos FA2.1 NFT Swapping Contracts
 
 ![Build](https://github.com/johnnyshankman/xtznftswap-contracts/actions/workflows/build.yml/badge.svg)
 
